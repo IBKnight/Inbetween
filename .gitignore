@@ -1,0 +1,6 @@
+/bin/
+/dumps/
+/out/
+*.exe
+*.log
+*.csv
