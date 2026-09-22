@@ -1,5 +1,5 @@
 // Shared declarations for ALL shaders. Included via #include "common.hlsli".
-// cbuffer Params MUST match gfx.Params (internal/gfx/params.go), 96 bytes.
+// cbuffer Params MUST match gfx.Params (internal/gfx/params.go), 112 bytes.
 #ifndef COMMON_HLSLI
 #define COMMON_HLSLI
 
@@ -25,7 +25,8 @@ cbuffer Params : register(b0)
     uint   gFrameIndex;  // c3.y
     uint2  gPad0;        // c3.zw
     float4 gUser;        // c4: x=reg, y=occ_thr, z=occ_k, w=zero_bias
-    float4 gUser2;       // c5: x=flow_vis max px
+    float4 gUser2;       // c5: x=flow_vis max px, y=occ_cost_thr, z=occ_cost_k, w=edge_smooth_k
+    float4 gUser3;       // c6: x=static_diff_thr, y=static_max_count
 };
 
 SamplerState LinearClamp : register(s0);

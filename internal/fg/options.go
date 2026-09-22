@@ -66,6 +66,13 @@ type Options struct {
 	// luma (a plain box blur, bleeding motion across edges) — always left above 0 in practice.
 	EdgeSmoothSharpness float32
 
+	// Static/HUD mask: content whose luma stays within StaticDiffThreshold for
+	// StaticMaxCount consecutive real-frame pairs is forced to zero flow in warp.hlsl,
+	// regardless of what the search found there — catches HUD/crosshair elements getting
+	// warped by smoothing bleed from nearby motion.
+	StaticDiffThreshold float32
+	StaticMaxCount      float32
+
 	VisMaxPx float32 // flow_vis: vector length (px) that reaches full saturation
 }
 
@@ -97,6 +104,12 @@ func DefaultOptions() Options {
 		// (diff up to ~0.03) while cutting sharply past a real edge (diff ~0.1+, weight
 		// <0.3). A first estimate, not measured — tune via -edge-smooth-k.
 		EdgeSmoothSharpness: 120,
+		// Luma is captured straight from the swapchain, so genuinely static content (HUD)
+		// should match near-exactly frame to frame; a small threshold just absorbs
+		// compression/dithering noise. ~0.25s at 60fps before fully committing to zero
+		// flow — long enough that a brief camera pause during real motion doesn't trigger it.
+		StaticDiffThreshold: 0.01,
+		StaticMaxCount:      15,
 		VisMaxPx:            32,
 	}
 }

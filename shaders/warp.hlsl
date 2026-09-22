@@ -3,10 +3,11 @@
 // is corrected first (see below) since the vector is only valid on the midpoint's own grid.
 #include "common.hlsli"
 
-Texture2D<float4>         A    : register(t0);
-Texture2D<float4>         B    : register(t1);
-Texture2D<float4>         Flow : register(t2); // xy is the A->B vector in UV (low res), z is its match cost
-RWTexture2D<unorm float4> Out  : register(u0);
+Texture2D<float4>         A          : register(t0);
+Texture2D<float4>         B          : register(t1);
+Texture2D<float4>         Flow       : register(t2); // xy is the A->B vector in UV (low res), z is its match cost
+Texture2D<float>          StaticHist : register(t3); // consecutive unchanged-frame count, flow's grid
+RWTexture2D<unorm float4> Out        : register(u0);
 
 [numthreads(GROUP_X, GROUP_Y, 1)]
 void main(uint3 id : SV_DispatchThreadID)
@@ -27,6 +28,14 @@ void main(uint3 id : SV_DispatchThreadID)
     float4 flowSample = Flow.SampleLevel(LinearClamp, midUV, 0);
     float2 v = flowSample.xy;
     float matchCost = flowSample.z;
+
+    // Long-static content (HUD, crosshair) should never be warped even if the search found
+    // a plausible-looking vector there (e.g. smoothing bleed from nearby motion) — fade both
+    // the vector and its cost toward zero/none as static confidence rises, so the occlusion
+    // check below doesn't act on a now-irrelevant cost either.
+    float staticK = saturate(StaticHist.SampleLevel(LinearClamp, midUV, 0) / gUser3.y);
+    v = lerp(v, float2(0, 0), staticK);
+    matchCost = lerp(matchCost, 0.0, staticK);
 
     float3 ca = A.SampleLevel(LinearClamp, uv - t * v, 0).rgb;
     float3 cb = B.SampleLevel(LinearClamp, uv + (1.0 - t) * v, 0).rgb;

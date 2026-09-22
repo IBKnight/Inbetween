@@ -32,20 +32,22 @@ type Config struct {
 	Out    string  // output directory (offline)
 
 	// Generation
-	Mult         int
-	Algo         string
-	FlowScale    float64
-	MinLevel     int
-	Radius       int
-	RefineRadius int
-	RefineIters  int
-	Reg          float64
-	ZeroBias     float64
-	OccThr       float64
-	OccK         float64
-	OccCostThr   float64
-	OccCostK     float64
-	EdgeSmoothK  float64
+	Mult          int
+	Algo          string
+	FlowScale     float64
+	MinLevel      int
+	Radius        int
+	RefineRadius  int
+	RefineIters   int
+	Reg           float64
+	ZeroBias      float64
+	OccThr        float64
+	OccK          float64
+	OccCostThr    float64
+	OccCostK      float64
+	EdgeSmoothK   float64
+	StaticDiffThr float64
+	StaticMaxCnt  float64
 
 	// Output
 	View    string // overlay | window
@@ -131,6 +133,8 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	fs.Float64Var(&c.OccCostThr, "occ-cost-thr", float64(d.OccCostThreshold), "порог окклюзии в warp (по стоимости совпадения потока)")
 	fs.Float64Var(&c.OccCostK, "occ-cost-k", float64(d.OccCostSharpness), "крутизна обработки окклюзий по стоимости (0 = выкл.)")
 	fs.Float64Var(&c.EdgeSmoothK, "edge-smooth-k", float64(d.EdgeSmoothSharpness), "резкость edge-aware сглаживания потока (больше = меньше размытие через границы)")
+	fs.Float64Var(&c.StaticDiffThr, "static-diff-thr", float64(d.StaticDiffThreshold), "порог различия яркости для счётчика статичности (HUD-маска)")
+	fs.Float64Var(&c.StaticMaxCnt, "static-max-count", float64(d.StaticMaxCount), "число подряд неизменных пар кадров до полного подавления потока (HUD-маска)")
 
 	fs.StringVar(&c.View, "view", "overlay", "вывод: overlay (поверх игры) | window (обычное окно)")
 	fs.BoolVar(&c.Layered, "layered", true, "overlay: клики проходят насквозь (layered+transparent)")
@@ -217,6 +221,8 @@ func (c *Config) FGOptions() fg.Options {
 	o.OccCostThreshold = float32(c.OccCostThr)
 	o.OccCostSharpness = float32(c.OccCostK)
 	o.EdgeSmoothSharpness = float32(c.EdgeSmoothK)
+	o.StaticDiffThreshold = float32(c.StaticDiffThr)
+	o.StaticMaxCount = float32(c.StaticMaxCnt)
 	return o
 }
 

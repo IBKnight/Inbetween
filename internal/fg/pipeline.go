@@ -20,7 +20,7 @@ type slot struct {
 }
 
 type shaders struct {
-	imp, luma, down, search, refine, smooth, blend, warp, vis *gfx.Shader
+	imp, luma, down, search, refine, smooth, staticMask, blend, warp, vis *gfx.Shader
 }
 
 // Pipeline holds all of frame generation's GPU state. One instance per frame size.
@@ -40,10 +40,11 @@ type Pipeline struct {
 	count  int
 	pushes uint64
 
-	levels  [][2]int
-	flow    []*gfx.Texture // RGBA16F: xy is the A->B vector in UV space, z is the match cost
-	flowTmp []*gfx.Texture
-	flowFor uint64 // the pushes value the flow is valid for
+	levels     [][2]int
+	flow       []*gfx.Texture // RGBA16F: xy is the A->B vector in UV space, z is the match cost
+	flowTmp    []*gfx.Texture
+	staticHist *gfx.Texture // R16F: consecutive unchanged-frame count, finest level's grid
+	flowFor    uint64       // the pushes value the flow is valid for
 
 	out, vis      *gfx.Texture
 	cb            *gfx.ConstantBuffer
@@ -73,13 +74,14 @@ func (p *Pipeline) init(lib *gfx.ShaderLib) error {
 	load(&p.sh.search, "flow_search.hlsl")
 	load(&p.sh.refine, "flow_refine.hlsl")
 	load(&p.sh.smooth, "flow_smooth.hlsl")
+	load(&p.sh.staticMask, "static_mask.hlsl")
 	load(&p.sh.blend, "blend.hlsl")
 	load(&p.sh.warp, "warp.hlsl")
 	load(&p.sh.vis, "flow_vis.hlsl")
 	if err != nil {
 		return err
 	}
-	if p.cb, err = p.d.NewConstantBuffer(96); err != nil {
+	if p.cb, err = p.d.NewConstantBuffer(112); err != nil {
 		return err
 	}
 	if p.linear, err = p.d.NewSampler(gfx.FilterLinear, gfx.AddressClamp); err != nil {
@@ -110,6 +112,7 @@ func (p *Pipeline) init(lib *gfx.ShaderLib) error {
 		p.flow = append(p.flow, tex(fmt.Sprintf("flow%d", l), sz[0], sz[1], gfx.FormatRGBA16F))
 		p.flowTmp = append(p.flowTmp, tex(fmt.Sprintf("flowtmp%d", l), sz[0], sz[1], gfx.FormatRGBA16F))
 	}
+	p.staticHist = tex("statichist", p.levels[0][0], p.levels[0][1], gfx.FormatR16F)
 	p.out = tex("out", p.W, p.H, gfx.FormatRGBA8)
 	p.vis = tex("flowvis", p.W, p.H, gfx.FormatRGBA8)
 	return err
@@ -138,6 +141,7 @@ func (p *Pipeline) tuning() gfx.Params {
 	return gfx.Params{
 		User:  [4]float32{p.Opt.Reg, p.Opt.OccThreshold, p.Opt.OccSharpness, p.Opt.ZeroBias},
 		User2: [4]float32{p.Opt.VisMaxPx, p.Opt.OccCostThreshold, p.Opt.OccCostSharpness, p.Opt.EdgeSmoothSharpness},
+		User3: [4]float32{p.Opt.StaticDiffThreshold, p.Opt.StaticMaxCount, 0, 0},
 	}
 }
 
@@ -210,6 +214,8 @@ func (p *Pipeline) EstimateFlow() {
 	// same pattern as the refine loop above, no new resources.
 	p.Pass(p.sh.smooth, p.levels[0], p.tuning(), []*gfx.Texture{p.flow[0], b.luma[0]}, []*gfx.Texture{p.flowTmp[0]})
 	p.flow[0], p.flowTmp[0] = p.flowTmp[0], p.flow[0]
+	// Static-history counter: independent of the search above, read-modify-write in place.
+	p.Pass(p.sh.staticMask, p.levels[0], p.tuning(), []*gfx.Texture{a.luma[0], b.luma[0]}, []*gfx.Texture{p.staticHist})
 	p.flowFor = p.pushes
 }
 
@@ -234,7 +240,7 @@ func (p *Pipeline) Generate(t float32) *gfx.Texture {
 		if p.DebugView {
 			return p.FlowVis()
 		}
-		p.Pass(p.sh.warp, p.full(), prm, []*gfx.Texture{a.color, b.color, p.flow[0]}, []*gfx.Texture{p.out})
+		p.Pass(p.sh.warp, p.full(), prm, []*gfx.Texture{a.color, b.color, p.flow[0], p.staticHist}, []*gfx.Texture{p.out})
 	}
 	return p.out
 }
@@ -281,6 +287,7 @@ func (p *Pipeline) Close() {
 	for _, t := range p.flowTmp {
 		t.Release()
 	}
+	p.staticHist.Release()
 	p.out.Release()
 	p.vis.Release()
 	p.cb.Release()
