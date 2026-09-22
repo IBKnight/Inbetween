@@ -22,12 +22,20 @@ them into a click-through overlay on top of the game window with even frame paci
 
 ```bat
 build.bat                                   :: vet + tests + build bin\inbetween.exe
+bin\inbetween.exe                           :: launcher: pick a window, algorithm, multiplier, hit Start
 bin\inbetween.exe -mode list                :: monitors and windows
 run-eval.bat                                :: synthetic-scene quality: PSNR, images in dumps\eval
 run-synthetic.bat                           :: live mode on a synthetic scene in a regular window
 run-game.bat "Cyberpunk"                    :: live mode over the game window (switch to the game within 3s)
 go run ./cmd/tracestat game.csv             :: how even the frame pacing was
 ```
+
+Double-clicking `bin\inbetween.exe` (no arguments) opens a small native launcher window
+(`internal/app/gui.go` + `internal/win/dialog.go`): pick the game's window from the
+drop-down, pick the algorithm and multiplier, click "Старт". When the game window closes
+or you press Ctrl+Alt+Q, the launcher reappears so you can pick another game. It's a thin
+wrapper around `-mode live -window "..."` — for anything beyond window/algorithm/multiplier
+(flow tuning, `-debug`, `-trace`, ...), use the CLI flags directly.
 
 A good test without a game: open a 30 fps video in the browser and target the browser
 window (`-window "YouTube"`) — the effect is immediately visible on smooth pans.
@@ -46,6 +54,7 @@ window (`-window "YouTube"`) — the effect is immediately visible on smooth pan
 
 | Mode | What it does | Why |
 |---|---|---|
+| `-mode gui` | native launcher: pick a window/algorithm/multiplier, click Start | default when run with no arguments at all |
 | `-mode list` | lists monitors/adapters and windows | to pick `-monitor` / `-window` |
 | `-mode eval` | synthetic scene, compares the generated frame against **ground truth** (PSNR) for each pair, for the off/blend/flow algorithms | objective metric: improve the shader → the number goes up |
 | `-mode offline` | PNG directory → PNG directory with intermediate frames inserted | run the algorithm over a real game recording |
@@ -81,14 +90,14 @@ Packages:
 | Package | Contents |
 |---|---|
 | `internal/com` | GUID, HRESULT, calling a COM method by vtable index |
-| `internal/win` | windows, messages, hotkeys, QPC, precise sleep, window lookup |
+| `internal/win` | windows, messages, hotkeys, QPC, precise sleep, window lookup, launcher dialog controls |
 | `internal/gfx` | D3D11 device, textures, compute/draw, shader compilation + hot reload, GPU profiler, readback/PNG, swapchain, debug layer |
 | `internal/capture` | Desktop Duplication, synthetic source, PNG |
 | `internal/fg` | the generation pipeline and its options |
 | `internal/pacing` | present scheduler (no Windows dependency, has tests) |
 | `internal/stats` | metrics, CSV trace |
 | `internal/config` | flags |
-| `internal/app` | list/eval/offline/live modes, main loop |
+| `internal/app` | gui/list/eval/offline/live modes, main loop |
 | `cmd/inbetween`, `cmd/tracestat` | entry points |
 | `shaders/` | all HLSL: one pass = one file |
 

@@ -32,7 +32,12 @@ func run() int {
 	}
 	defer app.SetupLog(cfg.LogFile)()
 
+	if len(os.Args) == 1 {
+		cfg.Mode = "gui" // double-clicked with no arguments: show the launcher
+	}
 	switch cfg.Mode {
+	case "gui":
+		err = app.RunGUI(cfg)
 	case "list":
 		err = app.RunList(cfg)
 	case "eval":

@@ -70,12 +70,14 @@ type Config struct {
 const usageHead = `inbetween — frame generation «снаружи» (как Lossless Scaling) на Go + D3D11.
 
 Режимы (-mode):
+  gui      окно выбора игры и запуска live-режима (по умолчанию при запуске без аргументов)
   list     показать мониторы/адаптеры и окна
   live     захват -> генерация -> вывод в оверлей (или окно)
   eval     офлайн-проверка качества на синтетической сцене: PSNR против «правды»
   offline  PNG-последовательность -> PNG с промежуточными кадрами
 
 Примеры:
+  inbetween
   inbetween -mode list
   inbetween -mode eval -size 1280x720 -fps 30 -eval 60
   inbetween -source synthetic -view window -fps 30 -mult 2 -marker
@@ -98,7 +100,7 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	}
 	d := fg.DefaultOptions()
 
-	fs.StringVar(&c.Mode, "mode", "live", "live | eval | offline | list")
+	fs.StringVar(&c.Mode, "mode", "live", "gui | live | eval | offline | list")
 	fs.StringVar(&c.Source, "source", "dda", "источник для live: dda | synthetic")
 	fs.StringVar(&c.Window, "window", "", "захват: подстрока заголовка окна (клиентская область)")
 	fs.IntVar(&c.Monitor, "monitor", 0, "захват: индекс монитора (если не задан -window/-rect)")
@@ -155,9 +157,9 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 
 func (c *Config) validate() error {
 	switch c.Mode {
-	case "live", "eval", "offline", "list":
+	case "gui", "live", "eval", "offline", "list":
 	default:
-		return fmt.Errorf("-mode: %q (ожидалось live|eval|offline|list)", c.Mode)
+		return fmt.Errorf("-mode: %q (ожидалось gui|live|eval|offline|list)", c.Mode)
 	}
 	switch c.Source {
 	case "dda", "synthetic":
