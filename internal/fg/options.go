@@ -53,6 +53,13 @@ type Options struct {
 	OccThreshold float32 // warp: color-mismatch threshold above which we assume occlusion
 	OccSharpness float32 // warp: how sharply we fall back to the nearest-in-time frame (0 = off)
 
+	// warp: a second, independent occlusion signal based on the match's own residual cost
+	// (flow_search/flow_refine's cost, already computed, carried in Flow.z) rather than
+	// color. Catches structurally-wrong matches that OccThreshold misses because the two
+	// warped samples happen to be similarly colored (e.g. dark cloth over dark rock).
+	OccCostThreshold float32
+	OccCostSharpness float32
+
 	VisMaxPx float32 // flow_vis: vector length (px) that reaches full saturation
 }
 
@@ -71,7 +78,13 @@ func DefaultOptions() Options {
 		ZeroBias:     0.002,
 		OccThreshold: 0.25,
 		OccSharpness: 4,
-		VisMaxPx:     32,
+		// MatchCost (see flow_common.hlsli) is a mean absolute luma difference over a 5x5
+		// block, so it's bounded to [0,1] but well-matched blocks usually land well under
+		// 0.05. These are a first estimate, not measured against a real cost histogram —
+		// tune via -occ-cost-thr/-occ-cost-k if they're mis-set for a given scene.
+		OccCostThreshold: 0.05,
+		OccCostSharpness: 20,
+		VisMaxPx:         32,
 	}
 }
 

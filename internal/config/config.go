@@ -43,6 +43,8 @@ type Config struct {
 	ZeroBias     float64
 	OccThr       float64
 	OccK         float64
+	OccCostThr   float64
+	OccCostK     float64
 
 	// Output
 	View    string // overlay | window
@@ -123,8 +125,10 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	fs.IntVar(&c.RefineIters, "refine-iters", d.RefineIters, "итераций распространения на уровень")
 	fs.Float64Var(&c.Reg, "reg", float64(d.Reg), "штраф за негладкость потока")
 	fs.Float64Var(&c.ZeroBias, "zero-bias", float64(d.ZeroBias), "бонус нулевому вектору (статика/HUD)")
-	fs.Float64Var(&c.OccThr, "occ-thr", float64(d.OccThreshold), "порог окклюзии в warp")
-	fs.Float64Var(&c.OccK, "occ-k", float64(d.OccSharpness), "крутизна обработки окклюзий (0 = выкл.)")
+	fs.Float64Var(&c.OccThr, "occ-thr", float64(d.OccThreshold), "порог окклюзии в warp (по цвету)")
+	fs.Float64Var(&c.OccK, "occ-k", float64(d.OccSharpness), "крутизна обработки окклюзий по цвету (0 = выкл.)")
+	fs.Float64Var(&c.OccCostThr, "occ-cost-thr", float64(d.OccCostThreshold), "порог окклюзии в warp (по стоимости совпадения потока)")
+	fs.Float64Var(&c.OccCostK, "occ-cost-k", float64(d.OccCostSharpness), "крутизна обработки окклюзий по стоимости (0 = выкл.)")
 
 	fs.StringVar(&c.View, "view", "overlay", "вывод: overlay (поверх игры) | window (обычное окно)")
 	fs.BoolVar(&c.Layered, "layered", true, "overlay: клики проходят насквозь (layered+transparent)")
@@ -208,6 +212,8 @@ func (c *Config) FGOptions() fg.Options {
 	o.ZeroBias = float32(c.ZeroBias)
 	o.OccThreshold = float32(c.OccThr)
 	o.OccSharpness = float32(c.OccK)
+	o.OccCostThreshold = float32(c.OccCostThr)
+	o.OccCostSharpness = float32(c.OccCostK)
 	return o
 }
 
