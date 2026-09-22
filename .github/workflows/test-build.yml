@@ -1,0 +1,53 @@
+name: test-build
+
+"on":
+  push:
+    tags:
+      - "test-*"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      # Same checks as CLAUDE.md's "how to verify changes without Windows/GPU" table.
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+      - name: go vet (native)
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: go vet (windows)
+        run: GOOS=windows GOARCH=amd64 go vet ./...
+
+      - name: Build Windows binaries
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist/package
+          go build -trimpath -ldflags "-s -w" -o dist/package/inbetween.exe ./cmd/inbetween
+          go build -trimpath -ldflags "-s -w" -o dist/package/tracestat.exe ./cmd/tracestat
+
+      - name: Package
+        run: |
+          cp -r shaders dist/package/shaders
+          cp README.md dist/package/
+
+      # Uploaded as a run artifact, not a GitHub release: visible on the Actions run page
+      # to people with repo access, not listed on /releases.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inbetween-test-build
+          path: dist/package
+          retention-days: 14
