@@ -40,10 +40,12 @@ type Pipeline struct {
 	count  int
 	pushes uint64
 
-	levels  [][2]int
-	flow    []*gfx.Texture // RGBA16F: xy is the A->B vector in UV space, z is the match cost
-	flowTmp []*gfx.Texture
-	flowFor uint64 // the pushes value the flow is valid for
+	levels   [][2]int
+	flow     []*gfx.Texture // RGBA16F: xy is the A->B vector in UV space, z is the match cost
+	flowTmp  []*gfx.Texture
+	flowHist *gfx.Texture // coarsest level's flow from the previous pair (temporal prediction seed)
+	hasHist  bool
+	flowFor  uint64 // the pushes value the flow is valid for
 
 	out, vis      *gfx.Texture
 	cb            *gfx.ConstantBuffer
@@ -110,6 +112,8 @@ func (p *Pipeline) init(lib *gfx.ShaderLib) error {
 		p.flow = append(p.flow, tex(fmt.Sprintf("flow%d", l), sz[0], sz[1], gfx.FormatRGBA16F))
 		p.flowTmp = append(p.flowTmp, tex(fmt.Sprintf("flowtmp%d", l), sz[0], sz[1], gfx.FormatRGBA16F))
 	}
+	coarsest := p.levels[len(p.levels)-1]
+	p.flowHist = tex("flowhist", coarsest[0], coarsest[1], gfx.FormatRGBA16F)
 	p.out = tex("out", p.W, p.H, gfx.FormatRGBA8)
 	p.vis = tex("flowvis", p.W, p.H, gfx.FormatRGBA8)
 	return err
@@ -180,9 +184,10 @@ func (p *Pipeline) buildPyramid(s *slot) {
 	}
 }
 
-// EstimateFlow computes the flow between Prev and Latest, coarse level to fine, then
-// bilaterally smooths the finest level. The result is p.flow[0] (the A->B vector in UV
-// units, estimated at the midpoint, t=0.5).
+// EstimateFlow computes the flow between Prev and Latest, coarse level to fine (seeding
+// the coarsest level from the previous pair's result once one exists), then bilaterally
+// smooths the finest level. The result is p.flow[0] (the A->B vector in UV units,
+// estimated at the midpoint, t=0.5).
 func (p *Pipeline) EstimateFlow() {
 	if !p.Ready() {
 		return
@@ -193,11 +198,21 @@ func (p *Pipeline) EstimateFlow() {
 		prm := p.tuning()
 		prm.Level = uint32(l)
 		var prior *gfx.Texture
-		if l < top {
+		switch {
+		case l < top:
 			prior = p.flow[l+1]
 			prm.Flags = gfx.FlagHasPrior
 			prm.Radius = uint32(p.Opt.RefineRadius)
-		} else {
+		case p.hasHist:
+			// Temporal prediction: center the coarsest level's search on the previous
+			// pair's coarse flow instead of zero. Same (full) radius as the no-history
+			// case, not narrowed — a bad prediction after a sudden motion change still
+			// gets the same search window, just off-center; a good one (the common,
+			// continuous-motion case) finds a sharper match within that same window.
+			prior = p.flowHist
+			prm.Flags = gfx.FlagHasPrior
+			prm.Radius = uint32(p.Opt.Radius)
+		default:
 			prm.Radius = uint32(p.Opt.Radius)
 		}
 		p.Pass(p.sh.search, p.levels[l], prm, []*gfx.Texture{a.luma[l], b.luma[l], prior}, []*gfx.Texture{p.flow[l]})
@@ -206,6 +221,9 @@ func (p *Pipeline) EstimateFlow() {
 			p.flow[l], p.flowTmp[l] = p.flowTmp[l], p.flow[l]
 		}
 	}
+	// Save the coarsest level's result as next pair's temporal seed.
+	p.d.CopyTexture(p.flowHist, p.flow[top])
+	p.hasHist = true
 	// Edge-aware smoothing, finest level only — reuses flowTmp[0] as the ping-pong target,
 	// same pattern as the refine loop above, no new resources.
 	p.Pass(p.sh.smooth, p.levels[0], p.tuning(), []*gfx.Texture{p.flow[0], b.luma[0]}, []*gfx.Texture{p.flowTmp[0]})
@@ -281,6 +299,7 @@ func (p *Pipeline) Close() {
 	for _, t := range p.flowTmp {
 		t.Release()
 	}
+	p.flowHist.Release()
 	p.out.Release()
 	p.vis.Release()
 	p.cb.Release()
