@@ -5,7 +5,7 @@
 #include "common.hlsli"
 
 Texture2D<float4>   FlowIn  : register(t0);
-Texture2D<float>    Luma    : register(t1); // reference for edge detection (frame B's luma)
+Texture2D<float>    LumaB   : register(t1); // reference for edge detection (frame B's luma)
 RWTexture2D<float4> FlowOut : register(u0);
 
 #ifndef BILATERAL_R
@@ -20,7 +20,7 @@ void main(uint3 id : SV_DispatchThreadID)
     int2 maxP = int2(gDstSize) - 1;
 
     float4 center = FlowIn.Load(int3(p, 0));
-    float lumaCenter = Luma.Load(int3(p, 0));
+    float lumaCenter = LumaB.Load(int3(p, 0));
 
     float2 sumV = float2(0, 0);
     float sumW = 0;
@@ -29,7 +29,7 @@ void main(uint3 id : SV_DispatchThreadID)
     {
         int2 q = clamp(p + int2(x, y), int2(0, 0), maxP);
         float2 v = FlowIn.Load(int3(q, 0)).xy;
-        float l = Luma.Load(int3(q, 0));
+        float l = LumaB.Load(int3(q, 0));
         float dl = l - lumaCenter;
         float w = exp(-dl * dl * gUser2.w);
         sumV += v * w;
