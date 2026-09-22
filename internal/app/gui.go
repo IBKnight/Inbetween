@@ -41,6 +41,10 @@ func RunGUI(cfg *config.Config) error {
 		}
 		run := *cfg
 		run.Window, run.Algo, run.Mult = target, algo, mult
+		// The launcher isn't a shader-editing workflow: hot reload only adds an mtime
+		// stat() poll every ~0.5s per shader/include, and a risk of a false-positive
+		// touch (AV scan, cloud sync) triggering a synchronous recompile mid-session.
+		run.HotReload = false
 		if noVSync {
 			run.VSync, run.Tearing = false, true
 		}
