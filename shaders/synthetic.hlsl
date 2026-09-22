@@ -1,7 +1,7 @@
-// Процедурная тестовая сцена в момент gTime (секунды). Детерминирована: можно отрендерить
-// «правду» для любого промежуточного момента — на этом построен eval (PSNR).
-// Содержит типовые трудные случаи: прокрутка текстуры, объекты разных скоростей,
-// очень быстрый объект, вращение, мелкий повторяющийся узор, статичный HUD.
+// A procedural test scene at moment gTime (seconds). Deterministic: the ground truth can
+// be rendered for any intermediate moment — that's what eval (PSNR) is built on.
+// Covers typical hard cases: texture scrolling, objects at different speeds, a very fast
+// object, rotation, a fine repeating pattern, a static HUD.
 #include "common.hlsli"
 
 RWTexture2D<unorm float4> Out : register(u0);
@@ -17,19 +17,20 @@ void main(uint3 id : SV_DispatchThreadID)
     float2 S = float2(gDstSize);
     float t = gTime;
 
-    // Фон: шахматка, равномерная прокрутка (120, 30) px/s, плюс вертикальный градиент.
+    // Background: a checkerboard, scrolling evenly at (120, 30) px/s, plus a vertical gradient.
     float2 bp = p + float2(t * 120.0, t * 30.0);
     float2 cell = floor(bp / 48.0);
     float checker = frac((cell.x + cell.y) * 0.5) * 2.0;
     float3 col = lerp(float3(0.15, 0.17, 0.22), float3(0.30, 0.32, 0.38), checker);
     col *= 0.8 + 0.2 * p.y / S.y;
 
-    // Полоса с мелким узором, движущимся быстрее фона (тест на апертурную проблему/повторы).
+    // A band with a fine pattern moving faster than the background (tests the aperture
+    // problem / repeating patterns).
     float stripes = step(0.5, frac((p.x + p.y * 0.5 - t * 300.0) / 16.0));
     float band = Box(p, float2(S.x * 0.5, S.y * 0.85), float2(S.x * 0.35, S.y * 0.05));
     col = lerp(col, lerp(float3(0.9, 0.8, 0.2), float3(0.2, 0.2, 0.2), stripes), band);
 
-    // Шары по фигурам Лиссажу с разной скоростью.
+    // Balls moving along Lissajous curves at different speeds.
     [unroll] for (int i = 0; i < 5; ++i)
     {
         float fi = (float)i;
@@ -40,11 +41,11 @@ void main(uint3 id : SV_DispatchThreadID)
         col = lerp(col, bc, Disc(p, c, r));
     }
 
-    // Очень быстрый объект (~0.8 ширины экрана в секунду).
+    // A very fast object (~0.8 screen widths per second).
     float2 fc = float2(frac(t * 0.8) * (S.x + 100.0) - 50.0, S.y * 0.2);
     col = lerp(col, float3(1.0, 1.0, 1.0), Box(p, fc, float2(10.0, 30.0)));
 
-    // Вращающаяся палка.
+    // A rotating bar.
     float2 rc = float2(S.x * 0.78, S.y * 0.5);
     float ang = t * 2.0;
     float2 dir = float2(cos(ang), sin(ang));
@@ -54,7 +55,7 @@ void main(uint3 id : SV_DispatchThreadID)
     float bar = saturate(0.5 - max(abs(along) - 120.0, abs(across) - 8.0));
     col = lerp(col, float3(0.9, 0.3, 0.3), bar);
 
-    // Статичный «HUD»: мелкий контрастный узор — должен оставаться неподвижным и чётким.
+    // A static "HUD": a fine high-contrast pattern that should stay still and sharp.
     float2 hp = p - float2(24.0, 24.0);
     if (all(hp >= 0.0) && all(hp < float2(260.0, 60.0)))
     {

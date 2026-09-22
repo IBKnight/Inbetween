@@ -1,4 +1,4 @@
-// Следующий уровень пирамиды яркости: уменьшение в 2 раза (билинейная выборка в центре = среднее 2x2).
+// The next luma pyramid level: half resolution (a centered bilinear sample = a 2x2 box average).
 #include "common.hlsli"
 
 Texture2D<float>   Src : register(t0);

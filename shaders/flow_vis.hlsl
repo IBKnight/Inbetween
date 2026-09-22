@@ -1,4 +1,4 @@
-// Визуализация потока: оттенок — направление, насыщенность — длина (gUser2.x px = максимум).
+// Flow visualization: hue is direction, saturation is length (gUser2.x px = max).
 #include "common.hlsli"
 
 Texture2D<float4>         Flow : register(t0);
@@ -14,7 +14,7 @@ float3 Hue(float h)
 void main(uint3 id : SV_DispatchThreadID)
 {
     if (OutOfBounds(id.xy)) return;
-    float2 v = Flow.SampleLevel(LinearClamp, PixelUV(id.xy), 0).xy * float2(gDstSize); // в пикселях кадра
+    float2 v = Flow.SampleLevel(LinearClamp, PixelUV(id.xy), 0).xy * float2(gDstSize); // in frame pixels
     float mag = length(v);
     float ang = atan2(v.y, v.x) / 6.2831853 + 0.5;
     float s = saturate(mag / max(gUser2.x, 1e-3));

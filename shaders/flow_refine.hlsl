@@ -1,5 +1,5 @@
-// Распространение (как в PatchMatch): пробуем векторы соседей, берём лучший по стоимости.
-// Убирает одиночные выбросы и тянет правильные векторы в однородные области.
+// Propagation (as in PatchMatch): try neighboring vectors, keep the lowest-cost one.
+// Removes isolated outliers and pulls correct vectors into homogeneous regions.
 #include "flow_common.hlsli"
 
 Texture2D<float4>   FlowIn  : register(t2);

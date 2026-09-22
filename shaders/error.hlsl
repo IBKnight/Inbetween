@@ -1,4 +1,4 @@
-// eval: поэлементная квадратичная ошибка между сгенерированным (A) и истинным (B) кадром.
+// eval: per-pixel squared error between the generated (A) and ground-truth (B) frame.
 #include "common.hlsli"
 
 Texture2D<float4>  A   : register(t0);

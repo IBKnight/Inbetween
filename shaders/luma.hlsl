@@ -1,5 +1,6 @@
-// Цветной кадр -> яркость уровня 0 пирамиды (обычно 1/2 разрешения).
-// 4 билинейные выборки = бокс-фильтр до 4x4 исходных пикселей (честное усреднение при уменьшении до 4x).
+// Color frame -> luma at pyramid level 0 (usually 1/2 resolution).
+// 4 bilinear samples = a box filter over up to 4x4 source pixels (a proper average when
+// downscaling up to 4x).
 #include "common.hlsli"
 
 Texture2D<float4>   Color : register(t0);

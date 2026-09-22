@@ -1,18 +1,19 @@
-// Общее для поиска потока: стоимость совпадения блоков.
+// Shared by flow search: block match cost.
 #ifndef FLOW_COMMON_HLSLI
 #define FLOW_COMMON_HLSLI
 #include "common.hlsli"
 
-Texture2D<float> LumaA : register(t0); // предыдущий кадр (уровень gLevel)
-Texture2D<float> LumaB : register(t1); // следующий кадр
+Texture2D<float> LumaA : register(t0); // previous frame (level gLevel)
+Texture2D<float> LumaB : register(t1); // next frame
 
 #ifndef BLOCK_R
-#define BLOCK_R 2 // блок (2R+1)^2 = 5x5
+#define BLOCK_R 2 // block (2R+1)^2 = 5x5
 #endif
 
-// СИММЕТРИЧНОЕ сопоставление: пиксель в момент t=0.5 в точке uv пришёл из A(uv - v/2)
-// и уйдёт в B(uv + v/2). v — полное смещение A->B в UV. Плюс такого подхода: поток сразу
-// задан на сетке промежуточного кадра, без «дыр» прямого варпинга.
+// SYMMETRIC matching: the pixel at moment t=0.5 at point uv came from A(uv - v/2)
+// and will go to B(uv + v/2). v is the full A->B displacement in UV. Upside of this
+// approach: the flow is already defined on the intermediate frame's grid, with no
+// "holes" the way forward warping would leave.
 float MatchCost(float2 uv, float2 v)
 {
     float2 ha = uv - 0.5 * v;
@@ -27,7 +28,7 @@ float MatchCost(float2 uv, float2 v)
     return sum / float((2 * BLOCK_R + 1) * (2 * BLOCK_R + 1));
 }
 
-// Штраф за отклонение вектора v от опорного ref (в текселях текущего уровня).
+// Penalty for vector v deviating from reference ref (in texels of the current level).
 float Smoothness(float2 v, float2 ref)
 {
     return gUser.x * length((v - ref) * float2(gDstSize));

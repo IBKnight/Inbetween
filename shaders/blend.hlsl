@@ -1,4 +1,4 @@
-// Простейшая «генерация»: линейное смешивание A и B. База для сравнения в eval.
+// The simplest "generation": a linear blend of A and B. Used as the eval baseline.
 #include "common.hlsli"
 
 Texture2D<float4>         A   : register(t0);
