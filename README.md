@@ -75,7 +75,8 @@ window (`-window "YouTube"`) — the effect is immediately visible on smooth pan
 | `-mode live` | capture → generate → overlay | actual usage |
 
 All flags: `bin\inbetween.exe -h`. The main ones: `-mult 2` (X2), `-algo flow|blend|off`,
-`-flowscale 0.5`, `-radius 4`, `-vsync`, `-marker` (a colored square in the corner: green —
+`-flowscale 0.3` (default; raise it for sharper flow at the cost of GPU time — see
+Limitations below), `-radius 4`, `-vsync`, `-marker` (a colored square in the corner: green —
 real frame, magenta — generated), `-trace file.csv`, `-dump N`, `-debug` (D3D11 debug layer).
 
 ## How it works
@@ -129,10 +130,17 @@ meant to be improved further — see the plan in `CLAUDE.md`.
 
 - Overlay: a flip-model swapchain on a layered window. If the output is black or doesn't
   update on your system — run with `-layered=false` (clicks then won't pass through) and
-  report it to the agent.
+  open an issue.
 - Desktop Duplication emits a frame on any screen update; updates outside the game's area
   are filtered out via dirty rects. Check `src ... fps` in the log: it should match the
   game's FPS.
+- **Flow cost vs. GPU budget.** `flow_search`/`flow_refine` cost is dominated by the finest
+  pyramid level (`-flowscale` × frame resolution). If the periodic log line shows `missed`
+  climbing, `interval` swinging wildly (huge ± next to it), or high `stale` counts, the flow
+  pass is likely eating enough of the GPU that it's starving the capture loop, which shows up
+  as dropped/choppy frames — not a flow-quality problem, a GPU-time-budget one. Check the
+  `gpu flow_search=... flow_refine=...` numbers in the same line; if their sum is well past a
+  couple of milliseconds, lower `-flowscale` (and/or raise `-minlevel`) until it isn't.
 - No support for HDR, rotated monitors, or resizing the game window on the fly.
 - Latency grows by roughly half a source frame (at X2) — that's inherent to the method.
 

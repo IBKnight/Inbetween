@@ -59,8 +59,10 @@ type Options struct {
 // DefaultOptions is a sensible starting point for 1080p/1440p.
 func DefaultOptions() Options {
 	return Options{
-		Algo:         AlgoFlow,
-		FlowScale:    0.5,
+		Algo: AlgoFlow,
+		// flow_search/flow_refine cost is dominated by the finest pyramid level's pixel
+		// count; keep this low enough to stay near the ~2-3ms GPU budget (see CLAUDE.md).
+		FlowScale:    0.3,
 		MinLevelSize: 24,
 		Radius:       4,
 		RefineRadius: 1,
