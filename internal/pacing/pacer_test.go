@@ -8,7 +8,7 @@ func feed(p *Pacer, fps float64, n int) (last int64) {
 	iv := float64(freq) / fps
 	for i := 1; i <= n; i++ {
 		last = int64(float64(i) * iv)
-		p.OnSourceFrame(last, last, uint64(i))
+		p.OnSourceFrame(last, last, uint64(i), 0)
 	}
 	return last
 }
@@ -57,7 +57,7 @@ func TestStaleDropped(t *testing.T) {
 	if p.Pending() != 2 {
 		t.Fatal("expected 2 pending")
 	}
-	p.OnSourceFrame(11*freq/60, 11*freq/60, 11) // новый кадр пришёл, старые показы не сделаны
+	p.OnSourceFrame(11*freq/60, 11*freq/60, 11, 0) // новый кадр пришёл, старые показы не сделаны
 	if p.Stale < 2 {
 		t.Fatalf("stale=%d", p.Stale)
 	}
@@ -66,12 +66,30 @@ func TestStaleDropped(t *testing.T) {
 func TestPauseDoesNotBreakEstimate(t *testing.T) {
 	p := New(freq, 2)
 	last := feed(p, 60, 30)
-	p.OnSourceFrame(last+freq, last+freq, 31) // секундная пауза
+	p.OnSourceFrame(last+freq, last+freq, 31, 0) // секундная пауза
 	if fps := p.SourceFPS(); fps < 59 || fps > 61 {
 		t.Fatalf("estimate broken by pause: %.2f", fps)
 	}
 	if p.Hiccups == 0 {
 		t.Fatal("pause must be counted as hiccup")
+	}
+}
+
+func TestMissedFramesDontSkewEstimate(t *testing.T) {
+	p := New(freq, 2)
+	last := feed(p, 60, 30)
+	iv := float64(freq) / 60
+	// 2 real frames' worth of time passed, but only 1 was captured (1 was coalesced). This
+	// gap sits well under the 2.5x hiccup threshold, so an un-normalized delta would silently
+	// throw off the EMA instead of being caught as an outlier.
+	hiccupsBefore := p.Hiccups
+	last += int64(2 * iv)
+	p.OnSourceFrame(last, last, 31, 1)
+	if fps := p.SourceFPS(); fps < 59 || fps > 61 {
+		t.Fatalf("missed frames skewed the estimate: %.2f fps", fps)
+	}
+	if p.Hiccups != hiccupsBefore {
+		t.Fatal("a correctly-reported coalesced gap must not count as a hiccup")
 	}
 }
 

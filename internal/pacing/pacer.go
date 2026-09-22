@@ -64,10 +64,12 @@ func (p *Pacer) SourceFPS() float64 {
 
 // OnSourceFrame is called when a new source frame arrives.
 // srcTime is the frame's timestamp at the source (DXGI LastPresentTime), now is when we
-// received it.
-func (p *Pacer) OnSourceFrame(srcTime, now int64, seq uint64) {
+// received it, missed is how many source frames were coalesced into this one (capture.Frame.Missed).
+func (p *Pacer) OnSourceFrame(srcTime, now int64, seq uint64, missed int) {
 	if p.lastSrc != 0 {
-		d := float64(srcTime - p.lastSrc)
+		// srcTime-lastSrc spans missed+1 real frames when some were coalesced; divide back
+		// down to a per-frame interval, or a coalesced gap reads as one huge (and wrong) one.
+		d := float64(srcTime-p.lastSrc) / float64(missed+1)
 		lo, hi := float64(p.Freq)/p.MaxFPS, float64(p.Freq)/p.MinFPS
 		switch {
 		case d < lo || d > hi:

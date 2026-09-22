@@ -231,7 +231,7 @@ func RunLive(cfg *config.Config) error {
 			e.endGPU()
 			lastArrival = arrival
 			if pipe.Ready() && enabled {
-				pacer.OnSourceFrame(f.Time, arrival, f.Seq)
+				pacer.OnSourceFrame(f.Time, arrival, f.Seq, f.Missed)
 			}
 			if pipe.Ready() && (dumpLeft > 0 || dumpNow) {
 				dir := filepath.Join(cfg.DumpDir, fmt.Sprintf("live_%06d", f.Seq))
