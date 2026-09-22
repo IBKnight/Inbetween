@@ -10,11 +10,25 @@ them into a click-through overlay on top of the game window with even frame paci
   with **hot reload**: edit a `.hlsl` file and the change shows up immediately, no restart needed.
 - Works on any DirectX 11 GPU (an RTX 30-series card has plenty of headroom).
 
+## Releases
+
+Prebuilt Windows binaries are published on the [Releases page](../../releases) — no Go
+toolchain needed. Each release is a zip with `inbetween.exe`, `tracestat.exe`, and the
+`shaders/` directory next to them (unzip anywhere, double-click `inbetween.exe`), plus a
+`.sha256` checksum file.
+
+Releases are built and published automatically by `.github/workflows/release.yml`: push a
+tag matching `v*` (e.g. `git tag v0.1.0 && git push origin v0.1.0`), or run the "release"
+workflow manually from the Actions tab with a version to build. The workflow cross-compiles
+from Linux (`GOOS=windows GOARCH=amd64 go build`) — no cgo means no Windows runner is needed
+to build it, only to run it.
+
 ## Requirements
 
 - Windows 10 2004+ or Windows 11 (needs `WDA_EXCLUDEFROMCAPTURE`, otherwise the overlay
   gets captured too).
-- Go 1.22+ (`winget install GoLang.Go`).
+- Go 1.22+ (`winget install GoLang.Go`) — only if building from source; a release zip needs
+  nothing but Windows itself.
 - The game running in **borderless windowed mode** — exclusive fullscreen isn't covered by
   the overlay.
 

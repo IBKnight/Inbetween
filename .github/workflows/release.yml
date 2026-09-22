@@ -1,0 +1,79 @@
+name: release
+
+"on":
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to build (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Same checks as CLAUDE.md's "how to verify changes without Windows/GPU" table.
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+      - name: go vet (native)
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: go vet (windows)
+        run: GOOS=windows GOARCH=amd64 go vet ./...
+
+      - name: Build Windows binaries
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist/package
+          go build -trimpath -ldflags "-s -w" -o dist/package/inbetween.exe ./cmd/inbetween
+          go build -trimpath -ldflags "-s -w" -o dist/package/tracestat.exe ./cmd/tracestat
+
+      - name: Package
+        run: |
+          cp -r shaders dist/package/shaders
+          cp README.md dist/package/
+          cd dist/package
+          zip -r "../inbetween-${{ steps.version.outputs.tag }}-windows-amd64.zip" .
+
+      - name: Checksum
+        run: |
+          cd dist
+          sha256sum "inbetween-${{ steps.version.outputs.tag }}-windows-amd64.zip" \
+            > "inbetween-${{ steps.version.outputs.tag }}-windows-amd64.zip.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            dist/inbetween-*-windows-amd64.zip \
+            dist/inbetween-*-windows-amd64.zip.sha256 \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes
