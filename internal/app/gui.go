@@ -19,6 +19,7 @@ const (
 	guiIDMultX2
 	guiIDMultX3
 	guiIDNoVSync
+	guiIDSmoother
 	guiIDStart
 )
 
@@ -31,7 +32,7 @@ func RunGUI(cfg *config.Config) error {
 		log.Printf("warning: DPI awareness: %v", err)
 	}
 	for {
-		target, algo, mult, noVSync, start, err := showLauncher()
+		target, algo, mult, noVSync, smoother, start, err := showLauncher()
 		if err != nil {
 			return err
 		}
@@ -43,6 +44,9 @@ func RunGUI(cfg *config.Config) error {
 		if noVSync {
 			run.VSync, run.Tearing = false, true
 		}
+		if smoother {
+			run.Offset = 0.3
+		}
 		if err := RunLive(&run); err != nil {
 			log.Printf("ОШИБКА: %v", err)
 		}
@@ -50,12 +54,12 @@ func RunGUI(cfg *config.Config) error {
 }
 
 // showLauncher displays the launcher window and blocks until the user either starts
-// (returns the chosen window/algorithm/multiplier/vsync-off and start=true) or closes it
-// (start=false).
-func showLauncher() (target, algo string, mult int, noVSync, start bool, err error) {
-	dlg, err := win.NewDialog("Inbetween", 340, 276)
+// (returns the chosen window/algorithm/multiplier/vsync-off/smoother and start=true) or
+// closes it (start=false).
+func showLauncher() (target, algo string, mult int, noVSync, smoother, start bool, err error) {
+	dlg, err := win.NewDialog("Inbetween", 340, 312)
 	if err != nil {
-		return "", "", 0, false, false, err
+		return "", "", 0, false, false, false, err
 	}
 	defer dlg.Destroy()
 
@@ -90,9 +94,12 @@ func showLauncher() (target, algo string, mult int, noVSync, start bool, err err
 	// Off by default: only useful without VRR, and trades a bit of tearing for presents
 	// that aren't gated on the display's fixed vblank slots.
 	noVSyncBox := dlg.AddCheckbox("Без VSync (если дёргается на обычном мониторе без G-Sync/FreeSync)", guiIDNoVSync, 12, 120, 316, 36)
+	// Off by default: shifts the whole present schedule later (pacing.Pacer.Offset), giving
+	// slack against uneven source-frame arrival at the cost of a few ms of extra latency.
+	smootherBox := dlg.AddCheckbox("Сильнее сглаживать тайминг показов (+неск. мс задержки)", guiIDSmoother, 12, 158, 316, 36)
 
-	dlg.AddButton("Старт", guiIDStart, 12, 166, 316, 30, true)
-	status := dlg.AddStatic("Выберите окно игры и нажмите «Старт».", 12, 206, 316, 50)
+	dlg.AddButton("Старт", guiIDStart, 12, 204, 316, 30, true)
+	status := dlg.AddStatic("Выберите окно игры и нажмите «Старт».", 12, 244, 316, 50)
 
 	dlg.OnCommand(func(id int, _ uint16) {
 		switch id {
@@ -123,11 +130,12 @@ func showLauncher() (target, algo string, mult int, noVSync, start bool, err err
 				mult = 3
 			}
 			noVSync = dlg.IsChecked(noVSyncBox)
+			smoother = dlg.IsChecked(smootherBox)
 			start = true
 			dlg.Destroy()
 		}
 	})
 
 	dlg.Run()
-	return target, algo, mult, noVSync, start, nil
+	return target, algo, mult, noVSync, smoother, start, nil
 }

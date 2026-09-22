@@ -51,6 +51,12 @@ or you press Ctrl+Alt+Q, the launcher reappears so you can pick another game. It
 wrapper around `-mode live -window "..."` — for anything beyond window/algorithm/multiplier
 (flow tuning, `-debug`, `-trace`, ...), use the CLI flags directly.
 
+Two extra checkboxes trade a bit of latency/tearing for smoothness, both off by default —
+useful if pacing looks uneven (see the `interval`/`late`/`stale` numbers in the periodic log
+line): "Без VSync" (`-vsync=false -tearing`) skips the display's fixed vblank slots; "Сильнее
+сглаживать тайминг" (`-pacing-offset 0.3`) shifts the whole present schedule a bit later,
+giving slack against uneven source-frame arrival.
+
 A good test without a game: open a 30 fps video in the browser and target the browser
 window (`-window "YouTube"`) — the effect is immediately visible on smooth pans.
 
