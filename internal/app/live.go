@@ -110,7 +110,7 @@ func RunLive(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	presentCB, err := e.dev.NewConstantBuffer(96)
+	presentCB, err := e.dev.NewConstantBuffer(112)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ func NewSynthetic(d *gfx.Device, lib *gfx.ShaderLib, w, h int, fps float64) (*Sy
 	if err != nil {
 		return nil, err
 	}
-	cb, err := d.NewConstantBuffer(96)
+	cb, err := d.NewConstantBuffer(112)
 	if err != nil {
 		return nil, err
 	}
