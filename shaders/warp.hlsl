@@ -1,6 +1,6 @@
 // Synthesizes an intermediate frame from the flow (backward warping from both frames).
-// The flow is estimated at the midpoint (t=0.5); for other t values the same vector is
-// reused as an approximation.
+// The flow is estimated at the midpoint (t=0.5); for other t values, the lookup position
+// is corrected first (see below) since the vector is only valid on the midpoint's own grid.
 #include "common.hlsli"
 
 Texture2D<float4>         A    : register(t0);
@@ -14,7 +14,17 @@ void main(uint3 id : SV_DispatchThreadID)
     if (OutOfBounds(id.xy)) return;
     float2 uv = PixelUV(id.xy);
     float t = gT;
-    float4 flowSample = Flow.SampleLevel(LinearClamp, uv, 0);
+
+    // The flow field lives on the midpoint's (t=0.5) grid: vector v at grid point x means
+    // "this content is at x - v/2 in A and x + v/2 in B". For t != 0.5 the content we want
+    // at output position uv doesn't sit at grid point uv on that grid — at time t it's at
+    // x + (t-0.5)*v(x), so solve for x with one step of backward correction: sample v once
+    // at uv to get a first estimate, use it to step back toward the midpoint grid point,
+    // then re-sample there for the vector actually used below. A no-op at t=0.5 (X2's only
+    // case), so this only changes anything for X3+.
+    float2 v0 = Flow.SampleLevel(LinearClamp, uv, 0).xy;
+    float2 midUV = uv - (t - 0.5) * v0;
+    float4 flowSample = Flow.SampleLevel(LinearClamp, midUV, 0);
     float2 v = flowSample.xy;
     float matchCost = flowSample.z;
 
