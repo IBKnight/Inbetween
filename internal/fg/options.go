@@ -60,6 +60,12 @@ type Options struct {
 	OccCostThreshold float32
 	OccCostSharpness float32
 
+	// Edge-aware bilateral smoothing of the finest-level flow field (flow_smooth.hlsl):
+	// higher values fall off faster with luma difference, i.e. respect edges more strictly
+	// and smooth flat regions less. 0 would make every neighbor's weight 1 regardless of
+	// luma (a plain box blur, bleeding motion across edges) — always left above 0 in practice.
+	EdgeSmoothSharpness float32
+
 	VisMaxPx float32 // flow_vis: vector length (px) that reaches full saturation
 }
 
@@ -81,10 +87,17 @@ func DefaultOptions() Options {
 		// MatchCost (see flow_common.hlsli) is a mean absolute luma difference over a 5x5
 		// block, so it's bounded to [0,1] but well-matched blocks usually land well under
 		// 0.05. These are a first estimate, not measured against a real cost histogram —
-		// tune via -occ-cost-thr/-occ-cost-k if they're mis-set for a given scene.
+		// tune via -occ-cost-thr/-occ-cost-k if they're mis-set for a given scene. Sharpness
+		// lowered from an initial 20: visually confirmed (Enshrouded dumps) that 20 gave a
+		// visible hard-edged outline around character silhouettes — 10 widens the
+		// blend<->snap transition band to soften that edge.
 		OccCostThreshold: 0.05,
-		OccCostSharpness: 20,
-		VisMaxPx:         32,
+		OccCostSharpness: 10,
+		// Luma in [0,1]; ~120 keeps weight high (>0.9) for same-surface shading noise
+		// (diff up to ~0.03) while cutting sharply past a real edge (diff ~0.1+, weight
+		// <0.3). A first estimate, not measured — tune via -edge-smooth-k.
+		EdgeSmoothSharpness: 120,
+		VisMaxPx:            32,
 	}
 }
 

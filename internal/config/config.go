@@ -45,6 +45,7 @@ type Config struct {
 	OccK         float64
 	OccCostThr   float64
 	OccCostK     float64
+	EdgeSmoothK  float64
 
 	// Output
 	View    string // overlay | window
@@ -129,6 +130,7 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	fs.Float64Var(&c.OccK, "occ-k", float64(d.OccSharpness), "крутизна обработки окклюзий по цвету (0 = выкл.)")
 	fs.Float64Var(&c.OccCostThr, "occ-cost-thr", float64(d.OccCostThreshold), "порог окклюзии в warp (по стоимости совпадения потока)")
 	fs.Float64Var(&c.OccCostK, "occ-cost-k", float64(d.OccCostSharpness), "крутизна обработки окклюзий по стоимости (0 = выкл.)")
+	fs.Float64Var(&c.EdgeSmoothK, "edge-smooth-k", float64(d.EdgeSmoothSharpness), "резкость edge-aware сглаживания потока (больше = меньше размытие через границы)")
 
 	fs.StringVar(&c.View, "view", "overlay", "вывод: overlay (поверх игры) | window (обычное окно)")
 	fs.BoolVar(&c.Layered, "layered", true, "overlay: клики проходят насквозь (layered+transparent)")
@@ -214,6 +216,7 @@ func (c *Config) FGOptions() fg.Options {
 	o.OccSharpness = float32(c.OccK)
 	o.OccCostThreshold = float32(c.OccCostThr)
 	o.OccCostSharpness = float32(c.OccCostK)
+	o.EdgeSmoothSharpness = float32(c.EdgeSmoothK)
 	return o
 }
 

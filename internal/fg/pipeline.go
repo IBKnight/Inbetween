@@ -20,7 +20,7 @@ type slot struct {
 }
 
 type shaders struct {
-	imp, luma, down, search, refine, blend, warp, vis *gfx.Shader
+	imp, luma, down, search, refine, smooth, blend, warp, vis *gfx.Shader
 }
 
 // Pipeline holds all of frame generation's GPU state. One instance per frame size.
@@ -72,6 +72,7 @@ func (p *Pipeline) init(lib *gfx.ShaderLib) error {
 	load(&p.sh.down, "downsample.hlsl")
 	load(&p.sh.search, "flow_search.hlsl")
 	load(&p.sh.refine, "flow_refine.hlsl")
+	load(&p.sh.smooth, "flow_smooth.hlsl")
 	load(&p.sh.blend, "blend.hlsl")
 	load(&p.sh.warp, "warp.hlsl")
 	load(&p.sh.vis, "flow_vis.hlsl")
@@ -136,7 +137,7 @@ func (p *Pipeline) Pass(sh *gfx.Shader, size [2]int, prm gfx.Params, srv, uav []
 func (p *Pipeline) tuning() gfx.Params {
 	return gfx.Params{
 		User:  [4]float32{p.Opt.Reg, p.Opt.OccThreshold, p.Opt.OccSharpness, p.Opt.ZeroBias},
-		User2: [4]float32{p.Opt.VisMaxPx, p.Opt.OccCostThreshold, p.Opt.OccCostSharpness, 0},
+		User2: [4]float32{p.Opt.VisMaxPx, p.Opt.OccCostThreshold, p.Opt.OccCostSharpness, p.Opt.EdgeSmoothSharpness},
 	}
 }
 
@@ -179,8 +180,9 @@ func (p *Pipeline) buildPyramid(s *slot) {
 	}
 }
 
-// EstimateFlow computes the flow between Prev and Latest, coarse level to fine.
-// The result is p.flow[0] (the A->B vector in UV units, estimated at the midpoint, t=0.5).
+// EstimateFlow computes the flow between Prev and Latest, coarse level to fine, then
+// bilaterally smooths the finest level. The result is p.flow[0] (the A->B vector in UV
+// units, estimated at the midpoint, t=0.5).
 func (p *Pipeline) EstimateFlow() {
 	if !p.Ready() {
 		return
@@ -204,6 +206,10 @@ func (p *Pipeline) EstimateFlow() {
 			p.flow[l], p.flowTmp[l] = p.flowTmp[l], p.flow[l]
 		}
 	}
+	// Edge-aware smoothing, finest level only — reuses flowTmp[0] as the ping-pong target,
+	// same pattern as the refine loop above, no new resources.
+	p.Pass(p.sh.smooth, p.levels[0], p.tuning(), []*gfx.Texture{p.flow[0], b.luma[0]}, []*gfx.Texture{p.flowTmp[0]})
+	p.flow[0], p.flowTmp[0] = p.flowTmp[0], p.flow[0]
 	p.flowFor = p.pushes
 }
 
