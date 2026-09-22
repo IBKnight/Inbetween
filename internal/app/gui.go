@@ -18,6 +18,7 @@ const (
 	guiIDAlgoFlow
 	guiIDMultX2
 	guiIDMultX3
+	guiIDNoVSync
 	guiIDStart
 )
 
@@ -30,7 +31,7 @@ func RunGUI(cfg *config.Config) error {
 		log.Printf("warning: DPI awareness: %v", err)
 	}
 	for {
-		target, algo, mult, start, err := showLauncher()
+		target, algo, mult, noVSync, start, err := showLauncher()
 		if err != nil {
 			return err
 		}
@@ -39,6 +40,9 @@ func RunGUI(cfg *config.Config) error {
 		}
 		run := *cfg
 		run.Window, run.Algo, run.Mult = target, algo, mult
+		if noVSync {
+			run.VSync, run.Tearing = false, true
+		}
 		if err := RunLive(&run); err != nil {
 			log.Printf("ОШИБКА: %v", err)
 		}
@@ -46,12 +50,12 @@ func RunGUI(cfg *config.Config) error {
 }
 
 // showLauncher displays the launcher window and blocks until the user either starts
-// (returns the chosen window/algorithm/multiplier and start=true) or closes it
+// (returns the chosen window/algorithm/multiplier/vsync-off and start=true) or closes it
 // (start=false).
-func showLauncher() (target, algo string, mult int, start bool, err error) {
-	dlg, err := win.NewDialog("Inbetween", 340, 240)
+func showLauncher() (target, algo string, mult int, noVSync, start bool, err error) {
+	dlg, err := win.NewDialog("Inbetween", 340, 276)
 	if err != nil {
-		return "", "", 0, false, err
+		return "", "", 0, false, false, err
 	}
 	defer dlg.Destroy()
 
@@ -83,8 +87,12 @@ func showLauncher() (target, algo string, mult int, start bool, err error) {
 	multX3 := dlg.AddRadio("X3", guiIDMultX3, 155, 96, 50, 20, false)
 	dlg.SetChecked(multX2, true)
 
-	dlg.AddButton("Старт", guiIDStart, 12, 132, 316, 30, true)
-	status := dlg.AddStatic("Выберите окно игры и нажмите «Старт».", 12, 172, 316, 50)
+	// Off by default: only useful without VRR, and trades a bit of tearing for presents
+	// that aren't gated on the display's fixed vblank slots.
+	noVSyncBox := dlg.AddCheckbox("Без VSync (если дёргается на обычном мониторе без G-Sync/FreeSync)", guiIDNoVSync, 12, 120, 316, 36)
+
+	dlg.AddButton("Старт", guiIDStart, 12, 166, 316, 30, true)
+	status := dlg.AddStatic("Выберите окно игры и нажмите «Старт».", 12, 206, 316, 50)
 
 	dlg.OnCommand(func(id int, _ uint16) {
 		switch id {
@@ -114,11 +122,12 @@ func showLauncher() (target, algo string, mult int, start bool, err error) {
 			if dlg.IsChecked(multX3) {
 				mult = 3
 			}
+			noVSync = dlg.IsChecked(noVSyncBox)
 			start = true
 			dlg.Destroy()
 		}
 	})
 
 	dlg.Run()
-	return target, algo, mult, start, nil
+	return target, algo, mult, noVSync, start, nil
 }

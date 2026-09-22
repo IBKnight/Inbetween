@@ -33,7 +33,9 @@ const (
 	dialogStyle = 0x00C00000 | 0x00080000
 
 	bsAutoRadioButton = 0x00000009
+	bsAutoCheckbox    = 0x00000003
 	bsDefPushButton   = 0x00000001
+	bsMultiline       = 0x00002000
 
 	cbsDropDownList = 0x0003
 	cbAddString     = 0x0143
@@ -163,6 +165,12 @@ func (d *Dialog) AddRadio(text string, id, x, y, w, h int, group bool) uintptr {
 		style |= wsGroup
 	}
 	return d.control("BUTTON", text, style, id, x, y, w, h)
+}
+
+// AddCheckbox adds an independent (non-exclusive) toggle with control id id. The label
+// word-wraps within w, so h should fit as many lines as the text needs.
+func (d *Dialog) AddCheckbox(text string, id, x, y, w, h int) uintptr {
+	return d.control("BUTTON", text, bsAutoCheckbox|bsMultiline, id, x, y, w, h)
 }
 
 // AddCombo adds a drop-down list (the text can't be typed in, only picked). h is the
