@@ -161,6 +161,8 @@ func RunLive(cfg *config.Config) error {
 		lastLog     = start
 		lastReload  = start
 		lastArrival int64
+		lastStats   gfx.FrameStatistics
+		haveStats   bool
 	)
 	onHotkey := func(id int) {
 		switch id {
@@ -273,6 +275,20 @@ func RunLive(cfg *config.Config) error {
 						log.Printf("устройство потеряно: %v", e.dev.RemovedReason())
 					}
 					return err
+				}
+				// vsync=false (tearing/no-sync) presents don't land on a fixed vblank
+				// cadence, so SyncQPCTime there wouldn't mean what alignment assumes.
+				if cfg.VSync {
+					if fs, err := sc.Stats(); err == nil && fs.SyncQPCTime != 0 {
+						// SyncRefreshCount can reset (e.g. a Resize) — only trust a genuine
+						// forward-moving pair, not a uint32 wraparound read as huge.
+						if dn := int64(fs.SyncRefreshCount) - int64(lastStats.SyncRefreshCount); haveStats && dn > 0 {
+							if interval := float64(fs.SyncQPCTime-lastStats.SyncQPCTime) / float64(dn); interval > 0 {
+								pacer.SyncVBlank(fs.SyncQPCTime, interval)
+							}
+						}
+						lastStats, haveStats = fs, true
+					}
 				}
 				pacer.Pop()
 				nowMs := win.TicksToMs(t1 - start)

@@ -13,6 +13,8 @@
 // (go test ./internal/pacing).
 package pacing
 
+import "math"
+
 // Item is one scheduled present.
 type Item struct {
 	Due   int64   // present moment, QPC ticks
@@ -39,6 +41,15 @@ type Pacer struct {
 	lastSrc  int64
 	queue    []Item
 
+	// vblank alignment (optional): a known-real vblank instant and the display's refresh
+	// interval, from SwapChain.Stats().SyncQPCTime. When set, the schedule's base snaps to
+	// the nearest actual vblank instead of raw wall-clock arrival time — otherwise vsync
+	// silently rounds every present to its own nearest vblank anyway, and an unaligned base
+	// just means that rounding error is uncontrolled instead of zeroed out up front.
+	// Zero interval (the default, or -vsync=false where Stats() doesn't advance) disables it.
+	vblankAnchor   int64
+	vblankInterval float64
+
 	// Stale counts scheduled presents dropped because a new frame arrived first.
 	Stale int
 	// Hiccups counts source intervals discarded as outliers (a stall/hitch).
@@ -54,6 +65,23 @@ func New(freq int64, mult int) *Pacer {
 
 // Interval is the current estimate of the source interval in ticks (0 = not known yet).
 func (p *Pacer) Interval() float64 { return p.interval }
+
+// SyncVBlank feeds a real vblank timestamp (SwapChain.Stats().SyncQPCTime) and the
+// display's refresh interval in ticks, derived from two consecutive readings' delta
+// (QPC delta / SyncRefreshCount delta). A non-positive interval disables alignment.
+func (p *Pacer) SyncVBlank(qpc int64, interval float64) {
+	p.vblankAnchor, p.vblankInterval = qpc, interval
+}
+
+// alignToVBlank snaps t to the nearest instant of the form vblankAnchor + k*vblankInterval.
+// A no-op (returns t unchanged) until SyncVBlank has been called with a positive interval.
+func (p *Pacer) alignToVBlank(t int64) int64 {
+	if p.vblankInterval <= 0 {
+		return t
+	}
+	k := math.Round(float64(t-p.vblankAnchor) / p.vblankInterval)
+	return p.vblankAnchor + int64(math.Round(k*p.vblankInterval))
+}
 
 func (p *Pacer) SourceFPS() float64 {
 	if p.interval <= 0 {
@@ -92,7 +120,7 @@ func (p *Pacer) OnSourceFrame(srcTime, now int64, seq uint64, missed int) {
 		return
 	}
 	step := p.interval / float64(p.Mult)
-	base := now + int64(p.Offset*p.interval)
+	base := p.alignToVBlank(now + int64(p.Offset*p.interval))
 	for k := 1; k <= p.Mult; k++ {
 		p.queue = append(p.queue, Item{
 			Due:   base + int64(float64(k-1)*step),

@@ -1,6 +1,9 @@
 package pacing
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 const freq = 10_000_000 // как QPC на большинстве машин
 
@@ -90,6 +93,34 @@ func TestMissedFramesDontSkewEstimate(t *testing.T) {
 	}
 	if p.Hiccups != hiccupsBefore {
 		t.Fatal("a correctly-reported coalesced gap must not count as a hiccup")
+	}
+}
+
+func TestVBlankAlignment(t *testing.T) {
+	p := New(freq, 2)
+	feed(p, 30, 5) // warm up the interval estimate
+	refresh := float64(freq) / 165
+	anchor := int64(math.Round(3 * refresh)) // an arbitrary real vblank, not aligned with source arrivals
+	p.SyncVBlank(anchor, refresh)
+
+	arrival := anchor + int64(2.3*refresh) // arrives partway between two vblanks
+	p.OnSourceFrame(arrival, arrival, 100, 0)
+	a, _ := p.Peek()
+
+	// a.Due must land on (within rounding) a multiple of the refresh interval from anchor.
+	k := math.Round(float64(a.Due-anchor) / refresh)
+	want := anchor + int64(math.Round(k*refresh))
+	if abs(a.Due-want) > 1 {
+		t.Fatalf("Due %d not aligned to a vblank (want %d, anchor=%d refresh=%.1f)", a.Due, want, anchor, refresh)
+	}
+}
+
+func TestVBlankDisabledByDefault(t *testing.T) {
+	p := New(freq, 2)
+	last := feed(p, 30, 5)
+	a, _ := p.Peek()
+	if a.Due != last {
+		t.Fatalf("without SyncVBlank, base must stay raw arrival time: got %d want %d", a.Due, last)
 	}
 }
 
