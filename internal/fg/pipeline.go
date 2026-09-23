@@ -141,7 +141,7 @@ func (p *Pipeline) tuning() gfx.Params {
 	return gfx.Params{
 		User:  [4]float32{p.Opt.Reg, p.Opt.OccThreshold, p.Opt.OccSharpness, p.Opt.ZeroBias},
 		User2: [4]float32{p.Opt.VisMaxPx, p.Opt.OccCostThreshold, p.Opt.OccCostSharpness, p.Opt.EdgeSmoothSharpness},
-		User3: [4]float32{p.Opt.StaticDiffThreshold, p.Opt.StaticMaxCount, 0, 0},
+		User3: [4]float32{p.Opt.StaticDiffThreshold, p.Opt.StaticMaxCount, p.Opt.CensusWeight, 0},
 	}
 }
 

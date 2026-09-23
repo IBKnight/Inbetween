@@ -73,6 +73,12 @@ type Options struct {
 	StaticDiffThreshold float32
 	StaticMaxCount      float32
 
+	// CensusWeight (see flow_common.hlsli's MatchCost) is a small additive weight on a
+	// census (lighting-robust structure) term on top of the dominant, continuous SAD cost.
+	// Deliberately small: a pure census cost was tried and reverted (Stage 3 item 2) after
+	// it broke the finest level's subpixel parabola fit on real hardware.
+	CensusWeight float32
+
 	VisMaxPx float32 // flow_vis: vector length (px) that reaches full saturation
 }
 
@@ -110,7 +116,12 @@ func DefaultOptions() Options {
 		// flow — long enough that a brief camera pause during real motion doesn't trigger it.
 		StaticDiffThreshold: 0.01,
 		StaticMaxCount:      15,
-		VisMaxPx:            32,
+		// SAD costs run well under 0.05 for a good match (see OccCostThreshold above);
+		// 0.03 lets census break ties among close SAD candidates without ever becoming
+		// the dominant term. Deliberately conservative given the reverted pure-census
+		// attempt — tune via -census-weight, 0 disables it entirely.
+		CensusWeight: 0.03,
+		VisMaxPx:     32,
 	}
 }
 

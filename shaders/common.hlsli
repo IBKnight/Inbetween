@@ -26,7 +26,7 @@ cbuffer Params : register(b0)
     uint2  gPad0;        // c3.zw
     float4 gUser;        // c4: x=reg, y=occ_thr, z=occ_k, w=zero_bias
     float4 gUser2;       // c5: x=flow_vis max px, y=occ_cost_thr, z=occ_cost_k, w=edge_smooth_k
-    float4 gUser3;       // c6: x=static_diff_thr, y=static_max_count
+    float4 gUser3;       // c6: x=static_diff_thr, y=static_max_count, z=census_weight
 };
 
 SamplerState LinearClamp : register(s0);

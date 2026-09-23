@@ -48,6 +48,7 @@ type Config struct {
 	EdgeSmoothK   float64
 	StaticDiffThr float64
 	StaticMaxCnt  float64
+	CensusWeight  float64
 
 	// Output
 	View           string // overlay | window
@@ -136,6 +137,7 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	fs.Float64Var(&c.EdgeSmoothK, "edge-smooth-k", float64(d.EdgeSmoothSharpness), "резкость edge-aware сглаживания потока (больше = меньше размытие через границы)")
 	fs.Float64Var(&c.StaticDiffThr, "static-diff-thr", float64(d.StaticDiffThreshold), "порог различия яркости для счётчика статичности (HUD-маска)")
 	fs.Float64Var(&c.StaticMaxCnt, "static-max-count", float64(d.StaticMaxCount), "число подряд неизменных пар кадров до полного подавления потока (HUD-маска)")
+	fs.Float64Var(&c.CensusWeight, "census-weight", float64(d.CensusWeight), "вес census-слагаемого поверх SAD в cost сравнения блоков (0 = выкл.)")
 
 	fs.StringVar(&c.View, "view", "overlay", "вывод: overlay (поверх игры) | window (обычное окно)")
 	fs.BoolVar(&c.Layered, "layered", true, "overlay: клики проходят насквозь (layered+transparent)")
@@ -225,6 +227,7 @@ func (c *Config) FGOptions() fg.Options {
 	o.EdgeSmoothSharpness = float32(c.EdgeSmoothK)
 	o.StaticDiffThreshold = float32(c.StaticDiffThr)
 	o.StaticMaxCount = float32(c.StaticMaxCnt)
+	o.CensusWeight = float32(c.CensusWeight)
 	return o
 }
 

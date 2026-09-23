@@ -21,7 +21,7 @@ type Params struct {
 	_          [2]uint32  // c3.zw  padding
 	User       [4]float32 // c4     tuning: x=reg, y=occ_thr, z=occ_k, w=zero_bias
 	User2      [4]float32 // c5     x=flow_vis max px, y=occ_cost_thr, z=occ_cost_k, w=edge_smooth_k
-	User3      [4]float32 // c6     x=static_diff_thr, y=static_max_count
+	User3      [4]float32 // c6     x=static_diff_thr, y=static_max_count, z=census_weight
 }
 
 // Params.Flags bits (meaning depends on the pass — see the comments in the .hlsl files).
