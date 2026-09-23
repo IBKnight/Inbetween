@@ -124,6 +124,37 @@ func TestVBlankDisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestAdaptiveOffsetStaysLowOnSteadySource(t *testing.T) {
+	p := New(freq, 2)
+	p.AdaptiveOffset = true
+	last := feed(p, 60, 60) // perfectly even arrivals - jitter should stay near 0
+	a, _ := p.Peek()
+	if got := a.Due - last; got > freq/1000 {
+		t.Fatalf("steady source got %.2fms of adaptive offset, want near 0", float64(got)*1000/freq)
+	}
+}
+
+func TestAdaptiveOffsetGrowsWithJitter(t *testing.T) {
+	p := New(freq, 2)
+	p.AdaptiveOffset = true
+	iv := float64(freq) / 60
+	last := int64(0)
+	// alternate short/long arrivals around the 60fps mean - deliberately jittery, but never
+	// past the 2.5x hiccup cutoff, so it all feeds the jitter EMA instead of being discarded.
+	for i := 1; i <= 40; i++ {
+		d := iv * 0.6
+		if i%2 == 0 {
+			d = iv * 1.4
+		}
+		last += int64(d)
+		p.OnSourceFrame(last, last, uint64(i), 0)
+	}
+	a, _ := p.Peek()
+	if got := a.Due - last; got < freq/1000 {
+		t.Fatalf("jittery source got only %.2fms of adaptive offset, want meaningfully more than 0", float64(got)*1000/freq)
+	}
+}
+
 func TestMult1(t *testing.T) {
 	p := New(freq, 1)
 	feed(p, 60, 5)

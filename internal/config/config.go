@@ -50,12 +50,13 @@ type Config struct {
 	StaticMaxCnt  float64
 
 	// Output
-	View    string // overlay | window
-	Layered bool   // overlay: click-through (WS_EX_LAYERED|WS_EX_TRANSPARENT)
-	VSync   bool
-	Tearing bool
-	Marker  bool
-	Offset  float64 // pacing schedule shift (fraction of the interval)
+	View           string // overlay | window
+	Layered        bool   // overlay: click-through (WS_EX_LAYERED|WS_EX_TRANSPARENT)
+	VSync          bool
+	Tearing        bool
+	Marker         bool
+	Offset         float64 // pacing schedule shift (fraction of the interval)
+	AdaptiveOffset bool    // compute the shift automatically from observed source jitter
 
 	// Debug
 	Debug        bool
@@ -142,6 +143,7 @@ func Parse(args []string, out io.Writer) (*Config, error) {
 	fs.BoolVar(&c.Tearing, "tearing", false, "разрешить tearing при -vsync=false")
 	fs.BoolVar(&c.Marker, "marker", false, "маркер в углу: зелёный — реальный кадр, пурпурный — сгенерированный")
 	fs.Float64Var(&c.Offset, "pacing-offset", 0, "сдвиг расписания показа (доля интервала источника)")
+	fs.BoolVar(&c.AdaptiveOffset, "adaptive-offset", false, "сдвиг расписания вычислять автоматически по дрожанию источника (игнорирует -pacing-offset)")
 
 	fs.BoolVar(&c.Debug, "debug", false, "debug-слой D3D11 (нужен компонент Graphics Tools)")
 	fs.BoolVar(&c.ShaderDebug, "shader-debug", false, "компилировать шейдеры без оптимизаций, с отладочной информацией")

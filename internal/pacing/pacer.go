@@ -31,13 +31,21 @@ type Pacer struct {
 	Alpha float64 // EMA coefficient for the source interval
 
 	// Offset shifts the ENTIRE schedule by a fraction of the interval (0 = present
-	// immediately). >0 trades latency for headroom against uneven frame arrival.
+	// immediately). >0 trades latency for headroom against uneven frame arrival. Ignored
+	// while AdaptiveOffset is true.
 	Offset float64
+
+	// AdaptiveOffset, when true, computes the schedule's offset automatically each source
+	// frame from recent interval jitter instead of using the fixed Offset field — a source
+	// with steadier timing gets less added latency, a jitterier one gets more slack. Gain
+	// and cap below are a first estimate, not measured against a real tracestat run.
+	AdaptiveOffset bool
 
 	// MinFPS/MaxFPS are sane bounds for the estimated source frequency.
 	MinFPS, MaxFPS float64
 
 	interval float64 // ticks, EMA
+	jitter   float64 // ticks, EMA of |d - interval| — used only when AdaptiveOffset is true
 	lastSrc  int64
 	queue    []Item
 
@@ -55,6 +63,11 @@ type Pacer struct {
 	// Hiccups counts source intervals discarded as outliers (a stall/hitch).
 	Hiccups int
 }
+
+const (
+	adaptiveOffsetGain = 2.0 // jitter, as a fraction of the interval, multiplied by this becomes Offset
+	maxAdaptiveOffset  = 0.4 // cap, so one bad reading can't blow up latency
+)
 
 func New(freq int64, mult int) *Pacer {
 	if mult < 1 {
@@ -107,6 +120,7 @@ func (p *Pacer) OnSourceFrame(srcTime, now int64, seq uint64, missed int) {
 		case d > 2.5*p.interval:
 			p.Hiccups++ // stall/hitch: don't let it pollute the estimate
 		default:
+			p.jitter += p.Alpha * (math.Abs(d-p.interval) - p.jitter)
 			p.interval += p.Alpha * (d - p.interval)
 		}
 	}
@@ -120,7 +134,11 @@ func (p *Pacer) OnSourceFrame(srcTime, now int64, seq uint64, missed int) {
 		return
 	}
 	step := p.interval / float64(p.Mult)
-	base := p.alignToVBlank(now + int64(p.Offset*p.interval))
+	offset := p.Offset
+	if p.AdaptiveOffset {
+		offset = min(p.jitter/p.interval*adaptiveOffsetGain, maxAdaptiveOffset)
+	}
+	base := p.alignToVBlank(now + int64(offset*p.interval))
 	for k := 1; k <= p.Mult; k++ {
 		p.queue = append(p.queue, Item{
 			Due:   base + int64(float64(k-1)*step),
@@ -153,5 +171,6 @@ func (p *Pacer) Pending() int { return len(p.queue) }
 func (p *Pacer) Reset() {
 	p.queue = p.queue[:0]
 	p.interval = 0
+	p.jitter = 0
 	p.lastSrc = 0
 }

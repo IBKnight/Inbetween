@@ -141,6 +141,7 @@ func RunLive(cfg *config.Config) error {
 	}
 	pacer := pacing.New(freq, multFor(pipe.Opt.Algo))
 	pacer.Offset = cfg.Offset
+	pacer.AdaptiveOffset = cfg.AdaptiveOffset
 	var st stats.Live
 	var trace *stats.Trace
 	if cfg.Trace != "" {
