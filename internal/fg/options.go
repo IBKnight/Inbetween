@@ -91,15 +91,15 @@ func DefaultOptions() Options {
 		ZeroBias:     0.002,
 		OccThreshold: 0.25,
 		OccSharpness: 4,
-		// MatchCost (see flow_common.hlsli) is a mean absolute luma difference over a 5x5
-		// block, so it's bounded to [0,1] but well-matched blocks usually land well under
-		// 0.05. These are a first estimate, not measured against a real cost histogram —
-		// tune via -occ-cost-thr/-occ-cost-k if they're mis-set for a given scene. Sharpness
-		// lowered from an initial 20: visually confirmed (Enshrouded dumps) that 20 gave a
-		// visible hard-edged outline around character silhouettes — 10 widens the
-		// blend<->snap transition band to soften that edge.
-		OccCostThreshold: 0.05,
-		OccCostSharpness: 10,
+		// MatchCost (see flow_common.hlsli) is a census Hamming distance over a 5x5 block:
+		// the fraction of 24 neighbor-vs-center sign comparisons that disagree between A and
+		// B, so 0 = identical local structure, ~0.5 = no better than a random block. A good
+		// match still isn't exactly 0 (sampling noise flips bits near a neighbor≈center
+		// threshold crossing), so the "occluded" threshold sits well above 0 but well below
+		// the ~0.5 random floor. First estimate, not measured against a real cost histogram —
+		// tune via -occ-cost-thr/-occ-cost-k if mis-set for a given scene.
+		OccCostThreshold: 0.15,
+		OccCostSharpness: 8,
 		// Luma in [0,1]; ~120 keeps weight high (>0.9) for same-surface shading noise
 		// (diff up to ~0.03) while cutting sharply past a real edge (diff ~0.1+, weight
 		// <0.3). A first estimate, not measured — tune via -edge-smooth-k.
